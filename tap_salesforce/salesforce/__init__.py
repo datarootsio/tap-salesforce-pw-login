@@ -14,6 +14,7 @@ from tap_salesforce.salesforce.rest import Rest
 from tap_salesforce.salesforce.exceptions import (
     TapSalesforceException,
     TapSalesforceQuotaExceededException)
+from tap_salesforce.salesforce import pw_login
 
 LOGGER = singer.get_logger()
 
@@ -206,6 +207,9 @@ class Salesforce():
                  token=None,
                  sf_client_id=None,
                  sf_client_secret=None,
+                 sf_username=None,
+                 sf_password=None,
+                 sf_security_token=None,
                  quota_percent_per_run=None,
                  quota_percent_total=None,
                  is_sandbox=None,
@@ -218,6 +222,9 @@ class Salesforce():
         self.token = token
         self.sf_client_id = sf_client_id
         self.sf_client_secret = sf_client_secret
+        self.sf_username = sf_username
+        self.sf_password = sf_password
+        self.sf_security_token = sf_security_token
         self.session = requests.Session()
         self.access_token = None
         self.instance_url = None
@@ -319,8 +326,25 @@ class Salesforce():
             self.check_rest_quota_usage(resp.headers)
 
         return resp
-
+    
     def login(self):
+        if self.sf_username and self.sf_password and self.sf_security_token:
+            LOGGER.info("Attempting login via username and password over SOAP API")
+            session_id, instance_url = pw_login.login_with_password(
+                self.sf_username,
+                self.sf_password,
+                self.sf_security_token,
+            )
+            self.access_token = session_id
+            self.instance_url = instance_url
+        elif self.refresh_token and self.sf_client_id and self.sf_client_secret:
+            self._oauth2_login()
+        else:
+            raise TapSalesforceException(
+                "One of sf_username, sf_password, and sf_security_token or refresh_token, sf_client_id, and sf_client_secret must be set"
+            )
+
+    def _oauth2_login(self):
         if self.is_sandbox:
             login_url = 'https://test.salesforce.com/services/oauth2/token'
         else:
