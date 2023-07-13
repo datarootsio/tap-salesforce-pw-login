@@ -13,17 +13,14 @@ from tap_salesforce.salesforce.exceptions import (
 
 LOGGER = singer.get_logger()
 
-REQUIRED_CONFIG_KEYS = ['refresh_token',
-                        'client_id',
-                        'client_secret',
-                        'start_date',
+REQUIRED_CONFIG_KEYS = ['start_date',
                         'api_type',
                         'select_fields_by_default']
 
 CONFIG = {
-    'refresh_token': None,
-    'client_id': None,
-    'client_secret': None,
+    # 'refresh_token': None,
+    # 'client_id': None,
+    # 'client_secret': None,
     'start_date': None
 }
 
@@ -379,10 +376,24 @@ def main_impl():
         lookback_window = CONFIG.get('lookback_window')
         lookback_window = int(lookback_window) if lookback_window else None
 
+        client_id = CONFIG.get('client_id')
+        client_secret = CONFIG.get('client_secret')
+        refresh_token = CONFIG.get('refresh_token')
+        username = CONFIG.get('username')
+        password = CONFIG.get('password')
+        security_token = CONFIG.get('security_token')
+        if not ((client_id and client_secret and refresh_token) or (username and password and security_token)):
+            raise TapSalesforceException(
+                "One of client_id, client_secret, and refresh_token or username, password, and security_token must be provided in config"
+            )
+
         sf = Salesforce(
-            refresh_token=CONFIG['refresh_token'],
-            sf_client_id=CONFIG['client_id'],
-            sf_client_secret=CONFIG['client_secret'],
+            refresh_token=refresh_token,
+            sf_client_id=client_id,
+            sf_client_secret=client_secret,
+            sf_username=username,
+            sf_password=password,
+            sf_security_token=security_token,
             quota_percent_total=CONFIG.get('quota_percent_total'),
             quota_percent_per_run=CONFIG.get('quota_percent_per_run'),
             is_sandbox=CONFIG.get('is_sandbox'),
